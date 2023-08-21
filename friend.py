@@ -12,15 +12,15 @@ consumer_secret = ''
 access_token = ''
 access_token_secret = ''
 
-# Etherscan API Key (replace with your base API key)
-etherscan_api_key = 'B'
+# Etherscan API Key (replace with your BASE API key)
+etherscan_api_key = ''
 
 # Telegram bot token (replace with your bot's API token)
-telegram_bot_token = ''
+telegram_bot_token = '6A'
 
 # Initialize the Telegram bot
 bot = Bot(token=telegram_bot_token)
-chat_id = 'g'
+chat_id = '-'
 
 # UTC+3 timezone offset (3 hours)
 utc_offset = timedelta(hours=3)
@@ -35,6 +35,7 @@ auth.set_access_token(access_token, access_token_secret)
 # Create a Tweepy API object
 api = tweepy.API(auth)
 
+# Define your get_first_transaction function
 def get_first_transaction(address):
     try:
         # Get the list of transactions for the address
@@ -51,6 +52,7 @@ def get_first_transaction(address):
         print(f"Error: {e}")
     return None
 
+# Define your format_timestamp_to_utc3 function
 def format_timestamp_to_utc3(timestamp):
     try:
         # Convert timestamp to a datetime object
@@ -64,17 +66,20 @@ def format_timestamp_to_utc3(timestamp):
         print(f"Error formatting timestamp: {e}")
     return None
 
+# Define your friend function
 def friend():
     platform = friendtech.Platform()
     recentlyJoined = platform.getRecentlyJoinedUsers().json()
     return recentlyJoined
 
+# Define your send_telegram_message function
 async def send_telegram_message(chat_id, message):
     try:
         await bot.send_message(chat_id=chat_id, text=message)
     except Exception as e:
         print(f"Error sending message: {e}")
 
+# Define your main function
 async def main():
     while True:
         recentlyJoinedData = friend()
@@ -92,21 +97,21 @@ async def main():
                 user_info = api.get_user(screen_name=username)
                 follower_count = user_info.followers_count
 
-                if follower_count > 5555 and holder_count < 7:
+                if follower_count > 5001 and holder_count < 7:
                     message = (
                         f"Holder Count: {holder_count}\n"
                         f"Share Supply: {user['shareSupply']}\n"
                         f"Address: {user_address}\n"
                         f"https://twitter.com/{username}\n"
                         f"Twitter Followers Count: {follower_count}\n"
-                        f"Ссылка на покупку в френдтеч - https://www.friend.tech/rooms/{user_address}\n"
+                        f"Link for friendtech- https://www.friend.tech/rooms/{user_address}\n"
                     )
 
                     # Get the first transaction
                     first_transaction = get_first_transaction(user_address)
                     if first_transaction:
                         timestamp_utc3 = format_timestamp_to_utc3(first_transaction['timeStamp'])
-                        message += f"Время первой транзы: {timestamp_utc3}\n"
+                        message += f"First  tx time - : {timestamp_utc3}\n"
 
                     # Send the message to your Telegram channel
                     await send_telegram_message(chat_id, message)
@@ -115,10 +120,10 @@ async def main():
                     processed_addresses.add(user_address)
 
             except tweepy.TweepError as e:
-                if e.response.status_code == 429:
-                    # Rate limit exceeded, wait for a minute before retrying
-                    print("Rate limit exceeded. Waiting...")
-                    time.sleep(60)
+                if e.api_code == 88:
+                    # Rate limit exceeded, wait for 15 minutes
+                    print("Rate limit exceeded. Waiting for 15 minutes...")
+                    time.sleep(900)  # Wait for 15 minutes (900 seconds)
                 else:
                     print(f"Error: {e}")
             except Exception as e:
