@@ -12,15 +12,15 @@ consumer_secret = ''
 access_token = ''
 access_token_secret = ''
 
-# Etherscan API Key (replace with your BASE API key)
+# Etherscan API Key (replace with your Etherscan API key)
 etherscan_api_key = ''
 
 # Telegram bot token (replace with your bot's API token)
-telegram_bot_token = '6A'
+telegram_bot_token = ''
 
 # Initialize the Telegram bot
 bot = Bot(token=telegram_bot_token)
-chat_id = '-'
+chat_id = ''
 
 # UTC+3 timezone offset (3 hours)
 utc_offset = timedelta(hours=3)
@@ -35,11 +35,14 @@ auth.set_access_token(access_token, access_token_secret)
 # Create a Tweepy API object
 api = tweepy.API(auth)
 
+
 # Define your get_first_transaction function
 def get_first_transaction(address):
     try:
-        # Get the list of transactions for the address
+        # Define your Etherscan API endpoint for fetching transactions
         etherscan_url = f'https://api.basescan.org/api?module=account&action=txlist&address={address}&startblock=0&endblock=99999999&sort=asc&apikey={etherscan_api_key}'
+
+        # Send the GET request to Etherscan
         response = requests.get(etherscan_url)
         data = response.json()
 
@@ -51,6 +54,7 @@ def get_first_transaction(address):
     except Exception as e:
         print(f"Error: {e}")
     return None
+
 
 # Define your format_timestamp_to_utc3 function
 def format_timestamp_to_utc3(timestamp):
@@ -66,11 +70,13 @@ def format_timestamp_to_utc3(timestamp):
         print(f"Error formatting timestamp: {e}")
     return None
 
+
 # Define your friend function
 def friend():
     platform = friendtech.Platform()
     recentlyJoined = platform.getRecentlyJoinedUsers().json()
     return recentlyJoined
+
 
 # Define your send_telegram_message function
 async def send_telegram_message(chat_id, message):
@@ -78,6 +84,7 @@ async def send_telegram_message(chat_id, message):
         await bot.send_message(chat_id=chat_id, text=message)
     except Exception as e:
         print(f"Error sending message: {e}")
+
 
 # Define your main function
 async def main():
@@ -88,36 +95,43 @@ async def main():
             holder_count = user['holderCount']
             username = user['twitterUsername']
             user_address = user['address']
+            share_Supply = user['shareSupply']
 
             # Check if the address has already been processed
             if user_address in processed_addresses:
                 continue
 
             try:
-                user_info = api.get_user(screen_name=username)
-                follower_count = user_info.followers_count
+                # Get the first transaction
+                first_transaction = get_first_transaction(user_address)
 
-                if follower_count > 5001 and holder_count < 7:
-                    message = (
-                        f"Holder Count: {holder_count}\n"
-                        f"Share Supply: {user['shareSupply']}\n"
-                        f"Address: {user_address}\n"
-                        f"https://twitter.com/{username}\n"
-                        f"Twitter Followers Count: {follower_count}\n"
-                        f"Link for friendtech- https://www.friend.tech/rooms/{user_address}\n"
-                    )
+                # Check if there is a first transaction and if it occurred within the last 5 minutes
+                if first_transaction:
+                    transaction_timestamp = int(first_transaction['timeStamp'])
+                    current_time = int(time.time())
+                    if share_Supply < 13 and (current_time - transaction_timestamp) <= 300:
+                        user_info = api.get_user(screen_name=username)
+                        follower_count = user_info.followers_count
 
-                    # Get the first transaction
-                    first_transaction = get_first_transaction(user_address)
-                    if first_transaction:
-                        timestamp_utc3 = format_timestamp_to_utc3(first_transaction['timeStamp'])
-                        message += f"First  tx time - : {timestamp_utc3}\n"
+                        # Check Twitter followers count
+                        if follower_count > 5001:
+                            message = (
+                                f"Holder Count: {holder_count}\n"
+                                f"Share Supply: {user['shareSupply']}\n"
+                                f"Address: {user_address}\n"
+                                f"https://twitter.com/{username}\n"
+                                f"Twitter Followers Count: {follower_count}\n"
+                                f"Link for friendtech- https://www.friend.tech/rooms/{user_address}\n"
+                            )
 
-                    # Send the message to your Telegram channel
-                    await send_telegram_message(chat_id, message)
+                            timestamp_utc3 = format_timestamp_to_utc3(first_transaction['timeStamp'])
+                            message += f"First tx time - : {timestamp_utc3}\n"
 
-                    # Add the address to the set of processed addresses
-                    processed_addresses.add(user_address)
+                            # Send the message to your Telegram channel
+                            await send_telegram_message(chat_id, message)
+
+                            # Add the address to the set of processed addresses
+                            processed_addresses.add(user_address)
 
             except tweepy.TweepError as e:
                 if e.api_code == 88:
@@ -131,6 +145,7 @@ async def main():
 
         # Wait for 3 seconds before fetching data again
         await asyncio.sleep(31)
+
 
 if __name__ == "__main__":
     asyncio.run(main())
